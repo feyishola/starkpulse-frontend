@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 use crate::errors::CrowdfundError;
 use crate::{CrowdfundVaultContract, CrowdfundVaultContractClient};
 use soroban_sdk::{
@@ -426,7 +424,7 @@ fn test_events_emission() {
     // Verify events exist (at least one event should be present)
     let events = env.events().all();
     assert!(
-        events.len() > 0,
+        !events.is_empty(),
         "Expected at least one event to be emitted"
     );
 }

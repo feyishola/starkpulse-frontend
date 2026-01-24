@@ -3,9 +3,10 @@
 mod errors;
 mod storage;
 mod token;
+mod events;
 
 use errors::CrowdfundError;
-use soroban_sdk::{contract, contractimpl, symbol_short, Address, Env, Symbol};
+use soroban_sdk::{contract, contractimpl, Address, Env, Symbol};
 use storage::{DataKey, ProjectData};
 
 #[contract]
@@ -30,7 +31,7 @@ impl CrowdfundVaultContract {
         env.storage().instance().set(&DataKey::NextProjectId, &0u64);
 
         // Emit initialization event
-        env.events().publish((symbol_short!("init"),), admin);
+        events::InitializedEvent { admin }.publish(&env);
 
         Ok(())
     }
@@ -97,8 +98,12 @@ impl CrowdfundVaultContract {
             .set(&DataKey::NextProjectId, &(project_id + 1));
 
         // Emit project creation event
-        env.events()
-            .publish((symbol_short!("create"), owner, token_address), project_id);
+        events::ProjectCreatedEvent {
+            owner,
+            token_address,
+            project_id,
+        }
+        .publish(&env);
 
         Ok(project_id)
     }
@@ -159,8 +164,12 @@ impl CrowdfundVaultContract {
             .set(&DataKey::Project(project_id), &project);
 
         // Emit deposit event
-        env.events()
-            .publish((symbol_short!("deposit"), user, project_id), amount);
+        events::DepositEvent {
+            user,
+            project_id,
+            amount,
+        }
+        .publish(&env);
 
         Ok(())
     }
@@ -201,8 +210,7 @@ impl CrowdfundVaultContract {
             .set(&DataKey::MilestoneApproved(project_id), &true);
 
         // Emit milestone approval event
-        env.events()
-            .publish((symbol_short!("approve"), admin), project_id);
+        events::MilestoneApprovedEvent { admin, project_id }.publish(&env);
 
         Ok(())
     }
@@ -275,10 +283,12 @@ impl CrowdfundVaultContract {
             .set(&DataKey::Project(project_id), &project);
 
         // Emit withdraw event
-        env.events().publish(
-            (symbol_short!("withdraw"), project.owner, project_id),
+        events::WithdrawEvent {
+            owner: project.owner,
+            project_id,
             amount,
-        );
+        }
+        .publish(&env);
 
         Ok(())
     }
@@ -308,8 +318,7 @@ impl CrowdfundVaultContract {
             .set(&DataKey::Reputation(contributor.clone()), &0i128);
 
         // Emit registration event
-        env.events()
-            .publish((symbol_short!("register"),), contributor);
+        events::ContributorRegisteredEvent { contributor }.publish(&env);
 
         Ok(())
     }
@@ -359,10 +368,12 @@ impl CrowdfundVaultContract {
             .set(&DataKey::Reputation(contributor.clone()), &new_reputation);
 
         // Emit reputation change event
-        env.events().publish(
-            (symbol_short!("reput"), contributor),
-            (old_reputation, new_reputation),
-        );
+        events::ReputationUpdatedEvent {
+            contributor,
+            old_reputation,
+            new_reputation,
+        }
+        .publish(&env);
 
         Ok(())
     }
