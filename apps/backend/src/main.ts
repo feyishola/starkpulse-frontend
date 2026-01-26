@@ -26,6 +26,11 @@ function getCorsOrigin(): string | string[] {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Register the global exception filter
+  app.useGlobalFilters(new GlobalExceptionFilter());
+
+  // Swagger Configuration
+
   app.use(
     helmet({
       crossOriginEmbedderPolicy: false,
