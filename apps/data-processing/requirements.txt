@@ -3,6 +3,7 @@ python-dotenv
 fastapi
 uvicorn
 vaderSentiment
+langdetect
 apscheduler
 stellar-sdk
 pytest
