@@ -16,10 +16,7 @@ pub struct VestingWalletContract;
 impl VestingWalletContract {
     /// Helper function to calculate claimable amount for a vesting schedule
     /// This is used by both get_claimable and claim to ensure consistency
-    fn calculate_claimable_amount(
-        current_time: u64,
-        vesting: &VestingData,
-    ) -> i128 {
+    fn calculate_claimable_amount(current_time: u64, vesting: &VestingData) -> i128 {
         if current_time < vesting.start_time {
             // Vesting hasn't started yet
             0
