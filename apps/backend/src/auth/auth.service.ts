@@ -99,14 +99,18 @@ export class AuthService {
     return null;
   }
 
-  async login(user: { id: string; email: string }, deviceInfo?: string, ipAddress?: string) {
+  async login(
+    user: { id: string; email: string },
+    deviceInfo?: string,
+    ipAddress?: string,
+  ) {
     const payload = { email: user.email, sub: user.id };
     const accessToken = this.jwtService.sign(payload);
-    
+
     // Generate and store refresh token
     const refreshToken = this.generateRefreshToken();
     await this.storeRefreshToken(refreshToken, user.id, deviceInfo, ipAddress);
-    
+
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
@@ -437,24 +441,29 @@ export class AuthService {
     ipAddress?: string,
   ): Promise<void> {
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    
+
     const refreshToken = this.refreshTokenRepository.create({
       tokenHash,
       userId,
-      expiresAt: new Date(Date.now() + AuthService.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(
+        Date.now() +
+          AuthService.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+      ),
       deviceInfo,
       ipAddress,
     });
-    
+
     await this.refreshTokenRepository.save(refreshToken);
   }
 
   /**
    * Validate refresh token and return user
    */
-  private async validateRefreshToken(token: string): Promise<{ user: User; refreshToken: RefreshToken }> {
+  private async validateRefreshToken(
+    token: string,
+  ): Promise<{ user: User; refreshToken: RefreshToken }> {
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    
+
     const refreshToken = await this.refreshTokenRepository.findOne({
       where: {
         tokenHash,
@@ -480,26 +489,36 @@ export class AuthService {
   /**
    * Refresh access token using refresh token
    */
-  async refreshToken(refreshToken: string, deviceInfo?: string, ipAddress?: string): Promise<{
+  async refreshToken(
+    refreshToken: string,
+    deviceInfo?: string,
+    ipAddress?: string,
+  ): Promise<{
     access_token: string;
     refresh_token?: string;
   }> {
-    const { user, refreshToken: storedToken } = await this.validateRefreshToken(refreshToken);
-    
+    const { user, refreshToken: storedToken } =
+      await this.validateRefreshToken(refreshToken);
+
     // Generate new access token
     const payload = { email: user.email, sub: user.id };
     const accessToken = this.jwtService.sign(payload);
-    
+
     // Token rotation: invalidate old refresh token and create new one
     storedToken.revokedAt = new Date();
     await this.refreshTokenRepository.save(storedToken);
-    
+
     // Generate new refresh token
     const newRefreshToken = this.generateRefreshToken();
-    await this.storeRefreshToken(newRefreshToken, user.id, deviceInfo, ipAddress);
-    
+    await this.storeRefreshToken(
+      newRefreshToken,
+      user.id,
+      deviceInfo,
+      ipAddress,
+    );
+
     this.logger.log(`Token refreshed for user ${user.id}`);
-    
+
     return {
       access_token: accessToken,
       refresh_token: newRefreshToken,
@@ -510,8 +529,11 @@ export class AuthService {
    * Logout user by revoking refresh token
    */
   async logout(refreshToken: string): Promise<{ message: string }> {
-    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-    
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
+
     const storedToken = await this.refreshTokenRepository.findOne({
       where: { tokenHash },
     });
@@ -530,9 +552,11 @@ export class AuthService {
     // Revoke the token
     storedToken.revokedAt = new Date();
     await this.refreshTokenRepository.save(storedToken);
-    
-    this.logger.log(`User logged out, refresh token revoked for user ${storedToken.userId}`);
-    
+
+    this.logger.log(
+      `User logged out, refresh token revoked for user ${storedToken.userId}`,
+    );
+
     return { message: 'Successfully logged out' };
   }
 
@@ -544,9 +568,9 @@ export class AuthService {
       { userId, revokedAt: IsNull() },
       { revokedAt: new Date() },
     );
-    
+
     this.logger.log(`All refresh tokens revoked for user ${userId}`);
-    
+
     return { message: 'Successfully logged out from all devices' };
   }
 }

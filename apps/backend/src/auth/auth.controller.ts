@@ -14,6 +14,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import type { Request as ExpressRequest } from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { UsersService } from '../users/users.service';
@@ -104,8 +105,11 @@ export class AuthController {
     status: 401,
     description: 'Invalid or expired refresh token',
   })
-  async refreshToken(@Body() body: RefreshTokenDto, @Request() req: any) {
-    const ipAddress = req.ip || req.connection.remoteAddress;
+  async refreshToken(
+    @Body() body: RefreshTokenDto,
+    @Request() req: ExpressRequest,
+  ) {
+    const ipAddress = req.ip || req.connection?.remoteAddress;
     return this.authService.refreshToken(
       body.refreshToken,
       body.deviceInfo,

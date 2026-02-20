@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { IsNull } from 'typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -392,7 +392,7 @@ describe('AuthService – Refresh Tokens', () => {
   describe('login', () => {
     it('should generate and store refresh token', async () => {
       const loginData = { id: 'user-uuid-1', email: 'alice@example.com' };
-      
+
       const result = await service.login(loginData, 'iPhone 15', '192.168.1.1');
 
       expect(result).toEqual({
@@ -414,7 +414,10 @@ describe('AuthService – Refresh Tokens', () => {
 
   describe('refreshToken', () => {
     const refreshToken = 'valid-refresh-token';
-    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
 
     const validRefreshToken: Partial<RefreshToken> = {
       id: 'refresh-token-uuid-1',
@@ -429,7 +432,11 @@ describe('AuthService – Refresh Tokens', () => {
     it('should refresh tokens successfully', async () => {
       refreshTokenRepository.findOne.mockResolvedValue(validRefreshToken);
 
-      const result = await service.refreshToken(refreshToken, 'iPhone 15', '192.168.1.1');
+      const result = await service.refreshToken(
+        refreshToken,
+        'iPhone 15',
+        '192.168.1.1',
+      );
 
       expect(result).toEqual({
         access_token: 'jwt-token',
@@ -471,10 +478,6 @@ describe('AuthService – Refresh Tokens', () => {
     });
 
     it('should reject revoked refresh token', async () => {
-      const revokedToken = {
-        ...validRefreshToken,
-        revokedAt: new Date(),
-      };
       refreshTokenRepository.findOne.mockResolvedValue(null); // Query excludes revoked tokens
 
       await expect(service.refreshToken(refreshToken)).rejects.toThrow(
@@ -485,7 +488,10 @@ describe('AuthService – Refresh Tokens', () => {
 
   describe('logout', () => {
     const refreshToken = 'valid-refresh-token';
-    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
 
     const validRefreshToken: Partial<RefreshToken> = {
       id: 'refresh-token-uuid-1',
