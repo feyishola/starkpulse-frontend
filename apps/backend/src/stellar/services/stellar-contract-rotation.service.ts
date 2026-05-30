@@ -1,4 +1,5 @@
 import { Injectable, Inject, BadRequestException } from '@nestjs/common';
+import { AuditLog } from '../../audit/entities/audit-log.entity';
 import { DataSource } from 'typeorm';
 import type { ConfigType } from '@nestjs/config';
 import stellarConfig from '../config/stellar.config';
@@ -94,7 +95,7 @@ export class StellarContractRotationService {
     // Step 3: Create audit log entry first, then apply updates. If applying
     // updates or invalidating cache fails, rollback overrides and delete the
     // created audit log so the operation is atomic from the client's view.
-    let auditLogRecord: any = null;
+    let auditLogRecord: AuditLog | null = null;
     const updatedContracts = this.applyContractUpdates(updates);
 
     try {
@@ -124,7 +125,7 @@ export class StellarContractRotationService {
       try {
         this.configService.setStellarContractOverrides(previousValues);
         await this.configService.invalidateCache();
-      } catch (rollbackErr) {
+      } catch {
         // Log rollback failure to monitoring in real deployments; rethrow original
       }
 
@@ -132,7 +133,7 @@ export class StellarContractRotationService {
       if (auditLogRecord && auditLogRecord.id) {
         try {
           await this.auditService.delete(auditLogRecord.id);
-        } catch (deleteErr) {
+        } catch {
           // If deletion fails, there's not much we can do here synchronously.
         }
       }

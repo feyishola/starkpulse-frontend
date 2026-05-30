@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   StrKey,
   Contract,
@@ -84,7 +84,7 @@ export class ContractRotationService {
     let context: SimulationContext | null = null;
     try {
       context = await this.loadSimulationContext(network);
-    } catch (error) {
+    } catch {
       // If we can't load the context, continue but mark on-chain
       // validation as unavailable. Do not throw — tests and callers
       // should receive format validation results even when RPC is down.
@@ -92,7 +92,9 @@ export class ContractRotationService {
     }
 
     // Prepare set of names that already failed format validation
-    const formatErrorNames = new Set(results.filter((r) => !r.isValid).map((r) => r.name));
+    const formatErrorNames = new Set(
+      results.filter((r) => !r.isValid).map((r) => r.name),
+    );
 
     // Validate each contract by simulating a read call
     for (const [name, id] of Object.entries(contractIds)) {
@@ -108,7 +110,11 @@ export class ContractRotationService {
       try {
         if (!context) {
           // Can't perform on-chain simulation; report as not validated
-          results.push({ name, isValid: false, error: 'Soroban RPC unavailable' });
+          results.push({
+            name,
+            isValid: false,
+            error: 'Soroban RPC unavailable',
+          });
           continue;
         }
         const methods = CONTRACT_VALIDATION_METHODS[name] || ['get_admin'];
