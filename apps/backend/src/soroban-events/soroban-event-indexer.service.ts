@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DeepPartial, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { rpc } from '@stellar/stellar-sdk';
 import { SorobanRpcClientService } from '../stellar/services/soroban-rpc-client.service';
@@ -178,11 +178,23 @@ export class SorobanEventIndexerService {
   ): Promise<void> {
     if (events.length === 0) return;
 
-    const rows = events.map((e) => {
+    const rows: DeepPartial<SorobanEvent>[] = events.map((e) => {
       // contractId is a Contract object in the parsed response; get its address
       const contractId = e.contractId?.address().toString() ?? null;
       const eventType = this.extractEventType(e);
       const eventIndex = this.parseEventIndex(e.id);
+
+      const rawPayload: Record<string, unknown> = {
+        id: e.id,
+        type: e.type,
+        ledger: e.ledger,
+        ledgerClosedAt: e.ledgerClosedAt,
+        txHash: e.txHash,
+        // Store topic and value as base64 strings for portability
+        topic: e.topic.map((t) => t.toXDR('base64')),
+        value: e.value.toXDR('base64'),
+        inSuccessfulContractCall: e.inSuccessfulContractCall,
+      };
 
       return {
         txHash: e.txHash,
@@ -190,17 +202,7 @@ export class SorobanEventIndexerService {
         contractId,
         eventType,
         ledgerSequence: e.ledger,
-        rawPayload: {
-          id: e.id,
-          type: e.type,
-          ledger: e.ledger,
-          ledgerClosedAt: e.ledgerClosedAt,
-          txHash: e.txHash,
-          // Store topic and value as base64 strings for portability
-          topic: e.topic.map((t) => t.toXDR('base64')),
-          value: e.value.toXDR('base64'),
-          inSuccessfulContractCall: e.inSuccessfulContractCall,
-        } as Record<string, unknown>,
+        rawPayload,
         status: SorobanEventStatus.PENDING,
         errorMessage: null,
         processedAt: null,
@@ -266,9 +268,9 @@ export class SorobanEventIndexerService {
       const first = topics[0];
       // xdr.ScVal — try to extract a symbol or string arm
       const sym = first.sym?.();
-      if (sym) return sym;
+      if (sym) return Buffer.isBuffer(sym) ? sym.toString('utf8') : String(sym);
       const str = first.str?.();
-      if (str) return str.toString();
+      if (str) return str.toString('utf8');
       return null;
     } catch {
       return null;
