@@ -10,7 +10,3 @@ crate-type = ["cdylib"]
 soroban-sdk = { workspace = true }
 idempotency-guard = { path = "../idempotency-guard" }
 
-[profile.release]
-opt-level = "z"
-lto = true
-codegen-units = 1

@@ -4,8 +4,8 @@ mod events;
 mod storage;
 
 use soroban_sdk::token::TokenClient;
-use soroban_sdk::{contract, contractclient, contractimpl, vec, Address, Env, Symbol, Vec};
-use storage::{DataKey, ProviderMetrics, YieldProvider};
+use soroban_sdk::{contract, contractclient, contractimpl, Address, Env, Symbol};
+use storage::{DataKey, YieldProvider};
 
 #[contractclient(name = "YieldProviderClient")]
 pub trait YieldProviderTrait {
