@@ -1,15 +1,18 @@
 [package]
-name = "treasury"
+name = "feature_flags"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
 [lib]
 crate-type = ["cdylib"]
+doctest = false
 
 [dependencies]
 soroban-sdk = { workspace = true }
-reentrancy-guard = { path = "../reentrancy-guard" }
-idempotency-guard = { path = "../idempotency-guard" }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
+
+[features]
+testutils = ["soroban-sdk/testutils"]
