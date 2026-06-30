@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsArray, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsEnum, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum WalletAction {
@@ -20,16 +20,23 @@ export class WalletReadinessQueryDto {
   @IsString()
   publicKey: string;
 
-  @ApiProperty({ description: 'Action to validate readiness for', enum: WalletAction })
+  @ApiProperty({
+    description: 'Action to validate readiness for',
+    enum: WalletAction,
+  })
   @IsEnum(WalletAction)
   action: WalletAction;
 
-  @ApiPropertyOptional({ description: 'Optional: Project ID for action context' })
+  @ApiPropertyOptional({
+    description: 'Optional: Project ID for action context',
+  })
   @IsOptional()
   @IsString()
   projectId?: string;
 
-  @ApiPropertyOptional({ description: 'Optional: Token address for trustline validation' })
+  @ApiPropertyOptional({
+    description: 'Optional: Token address for trustline validation',
+  })
   @IsOptional()
   @IsString()
   tokenAddress?: string;
