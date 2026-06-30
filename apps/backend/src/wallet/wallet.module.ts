@@ -6,11 +6,7 @@ import { AppCacheModule } from '../cache/cache.module';
 import { MetricsModule } from '../metrics/metrics.module';
 
 @Module({
-  imports: [
-    StellarModule,
-    AppCacheModule,
-    MetricsModule,
-  ],
+  imports: [StellarModule, AppCacheModule, MetricsModule],
   controllers: [WalletController],
   providers: [WalletService],
   exports: [WalletService],

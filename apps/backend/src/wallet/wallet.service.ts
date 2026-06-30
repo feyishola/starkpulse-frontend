@@ -2,6 +2,7 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { StellarService } from '../stellar/stellar.service';
 import { CacheService } from '../cache/cache.service';
 import { MetricsService } from '../metrics/metrics.service';
+import { AssetBalanceDto } from '../stellar/dto/balance.dto';
 import {
   WalletReadinessQueryDto,
   WalletReadinessResponseDto,
@@ -33,7 +34,7 @@ export class WalletService {
     const startTime = Date.now();
 
     try {
-      const { publicKey, action, projectId, tokenAddress, requiredAmount } = query;
+      const { publicKey, action, tokenAddress, requiredAmount } = query;
 
       // Validate public key format
       this.stellarService.validatePublicKeyOrThrow(publicKey);
@@ -42,11 +43,12 @@ export class WalletService {
       const accountExists = await this.stellarService.accountExists(publicKey);
 
       if (!accountExists) {
-        return this.createNotFundedResponse(publicKey, action);
+        return this.createNotFundedResponse();
       }
 
       // Get account balances
-      const accountBalances = await this.stellarService.getAccountBalances(publicKey);
+      const accountBalances =
+        await this.stellarService.getAccountBalances(publicKey);
 
       // Extract native balance
       const nativeBalance = this.extractNativeBalance(accountBalances.balances);
@@ -55,17 +57,15 @@ export class WalletService {
       const isFunded = BigInt(nativeBalance) >= BigInt(MINIMUM_BALANCE_STROOPS);
 
       // Check trustlines if required
-      const trustlines = await this.checkTrustlines(
-        publicKey,
+      const trustlines = this.checkTrustlines(
         action,
         tokenAddress,
         accountBalances.balances,
       );
 
       // Validate action-specific requirements
-      const issues = await this.validateActionRequirements(
+      const issues = this.validateActionRequirements(
         action,
-        publicKey,
         nativeBalance,
         trustlines,
         requiredAmount,
@@ -92,18 +92,23 @@ export class WalletService {
       };
 
       const duration = Date.now() - startTime;
-      this.metricsService.recordHistogram('wallet_readiness_validation_duration_ms', duration);
-      this.logger.log(`Validated wallet readiness for ${publicKey} in ${duration}ms`);
+      this.metricsService.recordHistogram(
+        'wallet_readiness_validation_duration_ms',
+        duration,
+      );
+      this.logger.log(
+        `Validated wallet readiness for ${publicKey} in ${duration}ms`,
+      );
 
       return response;
     } catch (error) {
       this.logger.error('Error validating wallet readiness:', error);
       this.metricsService.incrementCounter('wallet_readiness_errors_total');
-      
+
       if (error instanceof BadRequestException) {
         throw error;
       }
-      
+
       throw new Error('Failed to validate wallet readiness');
     }
   }
@@ -111,10 +116,7 @@ export class WalletService {
   /**
    * Create response for non-existent/unfunded accounts
    */
-  private createNotFundedResponse(
-    publicKey: string,
-    action: WalletAction,
-  ): WalletReadinessResponseDto {
+  private createNotFundedResponse(): WalletReadinessResponseDto {
     const issues: ReadinessIssueDto[] = [
       {
         type: 'ACCOUNT_NOT_FUNDED',
@@ -148,20 +150,19 @@ export class WalletService {
   /**
    * Extract native XLM balance from balances array
    */
-  private extractNativeBalance(balances: Array<{ asset_type: string; balance: string }>): string {
-    const native = balances.find((b) => b.asset_type === 'native');
+  private extractNativeBalance(balances: AssetBalanceDto[]): string {
+    const native = balances.find((b) => b.assetType === 'native');
     return native?.balance || '0';
   }
 
   /**
    * Check trustlines for required tokens
    */
-  private async checkTrustlines(
-    publicKey: string,
+  private checkTrustlines(
     action: WalletAction,
     tokenAddress: string | undefined,
-    balances: Array<{ asset_type: string; balance: string; asset_code?: string; asset_issuer?: string }>,
-  ): Promise<TrustlineStatusDto[]> {
+    balances: AssetBalanceDto[],
+  ): TrustlineStatusDto[] {
     const trustlines: TrustlineStatusDto[] = [];
 
     // Actions that may require trustlines
@@ -182,7 +183,7 @@ export class WalletService {
 
     // Check if trustline exists
     const existingTrustline = balances.find(
-      (b) => b.asset_code === assetCode && b.asset_issuer === issuer,
+      (b) => b.assetCode === assetCode && b.assetIssuer === issuer,
     );
 
     trustlines.push({
@@ -199,13 +200,12 @@ export class WalletService {
   /**
    * Validate action-specific requirements
    */
-  private async validateActionRequirements(
+  private validateActionRequirements(
     action: WalletAction,
-    publicKey: string,
     nativeBalance: string,
     trustlines: TrustlineStatusDto[],
     requiredAmount?: string,
-  ): Promise<ReadinessIssueDto[]> {
+  ): ReadinessIssueDto[] {
     const issues: ReadinessIssueDto[] = [];
     const balance = BigInt(nativeBalance);
 
@@ -228,7 +228,7 @@ export class WalletService {
         if (requiredAmount) {
           const required = BigInt(requiredAmount);
           const totalRequired = required + BigInt(TRUSTLINE_COST_STROOPS);
-          
+
           if (balance < totalRequired) {
             issues.push({
               type: 'INSUFFICIENT_FUNDS_FOR_ACTION',
@@ -321,7 +321,10 @@ export class WalletService {
   /**
    * Determine overall readiness status
    */
-  private determineReadinessStatus(isReady: boolean, issues: ReadinessIssueDto[]): ReadinessStatus {
+  private determineReadinessStatus(
+    isReady: boolean,
+    issues: ReadinessIssueDto[],
+  ): ReadinessStatus {
     if (isReady) {
       return ReadinessStatus.READY;
     }
@@ -343,7 +346,10 @@ export class WalletService {
   /**
    * Generate actionable recommendations
    */
-  private generateRecommendations(issues: ReadinessIssueDto[], action: WalletAction): string[] {
+  private generateRecommendations(
+    issues: ReadinessIssueDto[],
+    action: WalletAction,
+  ): string[] {
     const recommendations: string[] = [];
 
     // Group issues by type
@@ -358,7 +364,9 @@ export class WalletService {
     }
 
     if (issueTypes.has('MISSING_TRUSTLINE')) {
-      recommendations.push('Establish required trustlines for token operations');
+      recommendations.push(
+        'Establish required trustlines for token operations',
+      );
     }
 
     if (issueTypes.has('INSUFFICIENT_FUNDS_FOR_ACTION')) {
@@ -368,26 +376,34 @@ export class WalletService {
     // Action-specific recommendations
     switch (action) {
       case WalletAction.CONTRIBUTE:
-        recommendations.push('Ensure you have enough XLM for contribution and fees');
+        recommendations.push(
+          'Ensure you have enough XLM for contribution and fees',
+        );
         break;
       case WalletAction.CREATE_PROJECT:
-        recommendations.push('Ensure you have at least 2.5 XLM for project creation');
+        recommendations.push(
+          'Ensure you have at least 2.5 XLM for project creation',
+        );
         break;
       case WalletAction.TRANSFER:
-        recommendations.push('Verify recipient address and amount before transferring');
+        recommendations.push(
+          'Verify recipient address and amount before transferring',
+        );
         break;
     }
 
-    return recommendations.length > 0 ? recommendations : ['Wallet is ready for the requested action'];
+    return recommendations.length > 0
+      ? recommendations
+      : ['Wallet is ready for the requested action'];
   }
 
   /**
    * Extract asset code from token address (simplified)
    */
   private extractAssetCode(tokenAddress: string): string {
-    // In production, this would properly parse the Stellar asset
-    // For now, return a placeholder
-    return 'CUSTOM';
+    // In production, this would properly parse the Stellar asset.
+    // For now, use the segment before ":" when present.
+    return tokenAddress.split(':')[0] || 'CUSTOM';
   }
 
   /**
@@ -402,7 +418,11 @@ export class WalletService {
   /**
    * Health check for wallet service
    */
-  async healthCheck(): Promise<{ status: string; stellar: boolean; cache: boolean }> {
+  async healthCheck(): Promise<{
+    status: string;
+    stellar: boolean;
+    cache: boolean;
+  }> {
     const stellarHealth = await this.stellarService.checkHealth();
     const cacheHealth = await this.cacheService.checkHealth();
 
