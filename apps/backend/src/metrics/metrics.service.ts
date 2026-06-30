@@ -314,8 +314,14 @@ export class MetricsService implements OnModuleInit {
    * @param value Value to observe
    * @param labels Label values
    */
-  recordHistogram(name: string, value: number, labels: Record<string, string> = {}): void {
-    const histogram = this.getMetricByName(name) as Histogram<string> | undefined;
+  recordHistogram(
+    name: string,
+    value: number,
+    labels: Record<string, string> = {},
+  ): void {
+    const histogram = this.getMetricByName(name) as
+      | Histogram<string>
+      | undefined;
     if (histogram) {
       histogram.observe(labels, value);
     }
@@ -330,20 +336,22 @@ export class MetricsService implements OnModuleInit {
   getCounterValue(name: string): number {
     const counter = this.getMetricByName(name) as Counter<string> | undefined;
     if (!counter) return 0;
-    
-    const metric = this.registry.getMetricAsJSON(name);
-    if (metric && metric.values && metric.values.length > 0) {
-      return metric.values[0].value as number;
-    }
-    return 0;
+
+    return this.getFirstMetricValue(name);
   }
 
   /**
    * Helper to get a metric by name from the registry.
    */
-  private getMetricByName(name: string): Counter<string> | Histogram<string> | Gauge<string> | undefined {
+  private getMetricByName(
+    name: string,
+  ): Counter<string> | Histogram<string> | Gauge<string> | undefined {
     const metric = this.registry.getSingleMetric(name);
-    return metric as Counter<string> | Histogram<string> | Gauge<string> | undefined;
+    return metric as
+      | Counter<string>
+      | Histogram<string>
+      | Gauge<string>
+      | undefined;
   }
 
   // ── Cache-specific Metrics ─────────────────────────────────────────────────────
@@ -382,14 +390,41 @@ export class MetricsService implements OnModuleInit {
    * @returns Hit rate between 0 and 1
    */
   getCacheHitRate(): number {
-    const hitsMetric = this.registry.getMetricAsJSON('cache_hits_total');
-    const missesMetric = this.registry.getMetricAsJSON('cache_misses_total');
-    
-    const hits = hitsMetric?.values?.[0]?.value as number ?? 0;
-    const misses = missesMetric?.values?.[0]?.value as number ?? 0;
+    const hits = this.getFirstMetricValue('cache_hits_total');
+    const misses = this.getFirstMetricValue('cache_misses_total');
     const total = hits + misses;
-    
+
     return total > 0 ? hits / total : 0;
+  }
+
+  private getFirstMetricValue(name: string): number {
+    const metric = this.getMetricsAsJson()[name];
+    if (!this.hasMetricValues(metric)) {
+      return 0;
+    }
+
+    return metric.values[0]?.value ?? 0;
+  }
+
+  private hasMetricValues(
+    metric: unknown,
+  ): metric is { values: Array<{ value: number }> } {
+    if (typeof metric !== 'object' || metric === null) {
+      return false;
+    }
+
+    const candidate = metric as { values?: unknown };
+    if (!Array.isArray(candidate.values)) {
+      return false;
+    }
+
+    return candidate.values.every(
+      (value) =>
+        typeof value === 'object' &&
+        value !== null &&
+        'value' in value &&
+        typeof (value as { value: unknown }).value === 'number',
+    );
   }
 
   //Dynamic metric helpers (legacy API)

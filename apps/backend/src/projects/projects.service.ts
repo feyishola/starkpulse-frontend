@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, Between } from 'typeorm';
+import { Repository } from 'typeorm';
 import { ProjectRegistryEntity } from '../database/entities/project-registry.entity';
 import { CacheService } from '../cache/cache.service';
 import { MetricsService } from '../metrics/metrics.service';
@@ -11,7 +11,6 @@ import {
   ProjectDetailDto,
   ProjectListResponseDto,
   ProjectStatus,
-  VaultStateDto,
   OnChainStatusDto,
   ProjectMetadataDto,
 } from './dto/projects.dto';
@@ -31,11 +30,20 @@ export class ProjectsService {
   /**
    * Get paginated list of projects with on-chain status
    */
-  async listProjects(query: ProjectListQueryDto): Promise<ProjectListResponseDto> {
+  async listProjects(
+    query: ProjectListQueryDto,
+  ): Promise<ProjectListResponseDto> {
     const startTime = Date.now();
-    
+
     try {
-      const { page = 1, limit = 10, status, owner, sortBy = 'createdAt', sortOrder = 'DESC' } = query;
+      const {
+        page = 1,
+        limit = 10,
+        status,
+        owner,
+        sortBy = 'createdAt',
+        sortOrder = 'DESC',
+      } = query;
       const skip = (page - 1) * limit;
 
       // Build query conditions
@@ -57,7 +65,7 @@ export class ProjectsService {
 
       // Fetch on-chain state for each project
       const projectItems = await Promise.all(
-        projects.map(async (project) => this.enrichProjectWithOnChainState(project)),
+        projects.map((project) => this.enrichProjectWithOnChainState(project)),
       );
 
       const response: ProjectListResponseDto = {
@@ -69,7 +77,10 @@ export class ProjectsService {
       };
 
       const duration = Date.now() - startTime;
-      this.metricsService.recordHistogram('projects_list_duration_ms', duration);
+      this.metricsService.recordHistogram(
+        'projects_list_duration_ms',
+        duration,
+      );
       this.logger.log(`Listed ${projects.length} projects in ${duration}ms`);
 
       return response;
@@ -98,7 +109,10 @@ export class ProjectsService {
       const detail = await this.enrichProjectDetail(project);
 
       const duration = Date.now() - startTime;
-      this.metricsService.recordHistogram('projects_detail_duration_ms', duration);
+      this.metricsService.recordHistogram(
+        'projects_detail_duration_ms',
+        duration,
+      );
       this.logger.log(`Fetched project ${projectId} detail in ${duration}ms`);
 
       return detail;
@@ -117,7 +131,7 @@ export class ProjectsService {
   ): Promise<ProjectListItemDto> {
     try {
       const onChainState = await this.fetchOnChainState(project.projectId);
-      
+
       return {
         projectId: project.projectId,
         owner: project.owner,
@@ -127,7 +141,10 @@ export class ProjectsService {
         updatedAt: project.updatedAt,
       };
     } catch (error) {
-      this.logger.warn(`Failed to fetch on-chain state for project ${project.projectId}:`, error);
+      this.logger.warn(
+        `Failed to fetch on-chain state for project ${project.projectId}:`,
+        error,
+      );
       // Return with default on-chain state if fetch fails
       return {
         projectId: project.projectId,
@@ -148,7 +165,7 @@ export class ProjectsService {
   ): Promise<ProjectDetailDto> {
     try {
       const onChainState = await this.fetchOnChainState(project.projectId);
-      
+
       return {
         projectId: project.projectId,
         owner: project.owner,
@@ -163,7 +180,10 @@ export class ProjectsService {
         updatedAt: project.updatedAt,
       };
     } catch (error) {
-      this.logger.warn(`Failed to fetch on-chain state for project ${project.projectId}:`, error);
+      this.logger.warn(
+        `Failed to fetch on-chain state for project ${project.projectId}:`,
+        error,
+      );
       return {
         projectId: project.projectId,
         owner: project.owner,
@@ -183,32 +203,30 @@ export class ProjectsService {
   /**
    * Fetch on-chain state from contract with caching
    */
-  private async fetchOnChainState(projectId: string): Promise<OnChainStatusDto> {
+  private async fetchOnChainState(
+    projectId: string,
+  ): Promise<OnChainStatusDto> {
     return this.cacheService.getContractReadCached(
       projectId,
       'get_vault_state',
       {},
-      async () => {
-        // In a real implementation, this would call the actual contract
-        // For now, we'll simulate the on-chain state
-        return this.simulateOnChainState(projectId);
-      },
+      () => Promise.resolve(this.simulateOnChainState(projectId)),
     );
   }
 
   /**
    * Simulate on-chain state (replace with actual contract call)
    */
-  private async simulateOnChainState(projectId: string): Promise<OnChainStatusDto> {
+  private simulateOnChainState(projectId: string): OnChainStatusDto {
     // This would be replaced with actual Soroban contract calls
     // using the SorobanRpcClientService to read contract state
-    
+
     return {
       status: ProjectStatus.ACTIVE,
       vault: {
         totalDeposited: '10000000000', // 1000 XLM in stroops
-        totalWithdrawn: '5000000000',  // 500 XLM in stroops
-        currentBalance: '5000000000',  // 500 XLM in stroops
+        totalWithdrawn: '5000000000', // 500 XLM in stroops
+        currentBalance: '5000000000', // 500 XLM in stroops
         contributorCount: 42,
         lastLedgerSeq: 12345678,
       },
@@ -220,7 +238,9 @@ export class ProjectsService {
   /**
    * Get default on-chain state when contract is unavailable
    */
-  private getDefaultOnChainState(project: ProjectRegistryEntity): OnChainStatusDto {
+  private getDefaultOnChainState(
+    project: ProjectRegistryEntity,
+  ): OnChainStatusDto {
     return {
       status: project.status as ProjectStatus,
       vault: {
@@ -241,7 +261,7 @@ export class ProjectsService {
   private parseMetadata(project: ProjectRegistryEntity): ProjectMetadataDto {
     // In a real implementation, this would fetch and parse metadata from IPFS
     // using the metadataCid field
-    
+
     return {
       name: project.name,
       description: `Description for ${project.name}`,
@@ -264,7 +284,11 @@ export class ProjectsService {
   /**
    * Health check for projects service
    */
-  async healthCheck(): Promise<{ status: string; database: boolean; cache: boolean }> {
+  async healthCheck(): Promise<{
+    status: string;
+    database: boolean;
+    cache: boolean;
+  }> {
     const dbHealth = await this.checkDatabaseHealth();
     const cacheHealth = await this.cacheService.checkHealth();
 
