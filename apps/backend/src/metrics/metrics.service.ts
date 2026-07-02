@@ -33,10 +33,10 @@ export class MetricsService implements OnModuleInit {
   private readonly anomaliesDetectedCounter: Counter<string>;
   private readonly fetchErrorsCounter: Counter<string>;
 
-  // Cache metrics //
-  private readonly cacheHitsCounter: Counter<string>;
-  private readonly cacheMissesCounter: Counter<string>;
-  private readonly cacheFetchDuration: Histogram<string>;
+  // Outbound calls (Soroban RPC + Horizon) //
+  private readonly horizonLatency: Histogram<string>;
+  private readonly horizonErrors: Counter<string>;
+  private readonly horizonRequests: Counter<string>;
 
   // Running totals for the rolling-average sentiment gauge
   private sentimentSum = 0;
@@ -131,26 +131,26 @@ export class MetricsService implements OnModuleInit {
       registers: [this.registry],
     });
 
-    // Cache metrics //
-    this.cacheHitsCounter = new Counter({
-      name: 'cache_hits_total',
-      help: 'Total number of cache hits',
-      labelNames: ['key_type'] as const,
+    // Outbound calls (Horizon API) //
+    this.horizonLatency = new Histogram({
+      name: 'horizon_http_latency_ms',
+      help: 'Horizon API call latency in milliseconds',
+      labelNames: ['method', 'status'] as const,
+      buckets: [50, 100, 250, 500, 1000, 2500, 5000],
       registers: [this.registry],
     });
 
-    this.cacheMissesCounter = new Counter({
-      name: 'cache_misses_total',
-      help: 'Total number of cache misses',
-      labelNames: ['key_type'] as const,
+    this.horizonErrors = new Counter({
+      name: 'horizon_http_errors_total',
+      help: 'Total Horizon API errors by method and status code',
+      labelNames: ['method', 'status_code'] as const,
       registers: [this.registry],
     });
 
-    this.cacheFetchDuration = new Histogram({
-      name: 'cache_fetch_duration_ms',
-      help: 'Cache fetch latency in milliseconds',
-      labelNames: ['key_type'] as const,
-      buckets: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
+    this.horizonRequests = new Counter({
+      name: 'horizon_http_requests_total',
+      help: 'Total Horizon API requests by method',
+      labelNames: ['method'] as const,
       registers: [this.registry],
     });
   }
@@ -292,139 +292,32 @@ export class MetricsService implements OnModuleInit {
     this.fetchErrorsCounter.inc({ source, error_code: errorCode });
   }
 
-  // ── Generic Metrics Helpers ─────────────────────────────────────────────────────
+  // Outbound Horizon API instrumentation //
 
   /**
-   * Increment a counter metric.
+   * Record a completed Horizon API request.
    *
-   * @param name  Counter metric name
-   * @param labels Label values
+   * @param method      API method name, e.g. "getTransactions", "getOperations"
+   * @param statusCode  HTTP status code or 'success'/'error'
+   * @param latencyMs   Request duration in milliseconds
    */
-  incrementCounter(name: string, labels: Record<string, string> = {}): void {
-    const counter = this.getMetricByName(name) as Counter<string> | undefined;
-    if (counter) {
-      counter.inc(labels);
-    }
-  }
-
-  /**
-   * Record a histogram observation.
-   *
-   * @param name  Histogram metric name
-   * @param value Value to observe
-   * @param labels Label values
-   */
-  recordHistogram(
-    name: string,
-    value: number,
-    labels: Record<string, string> = {},
+  recordHorizonRequest(
+    method: string,
+    status: string,
+    latencyMs: number,
   ): void {
-    const histogram = this.getMetricByName(name) as
-      | Histogram<string>
-      | undefined;
-    if (histogram) {
-      histogram.observe(labels, value);
-    }
+    this.horizonRequests.inc({ method });
+    this.horizonLatency.labels({ method, status }).observe(latencyMs);
   }
 
   /**
-   * Get current value of a counter metric.
+   * Record a Horizon API error.
    *
-   * @param name  Counter metric name
-   * @returns Current counter value
+   * @param method      API method name
+   * @param statusCode  HTTP status code or error identifier
    */
-  getCounterValue(name: string): number {
-    const counter = this.getMetricByName(name) as Counter<string> | undefined;
-    if (!counter) return 0;
-
-    return this.getFirstMetricValue(name);
-  }
-
-  /**
-   * Helper to get a metric by name from the registry.
-   */
-  private getMetricByName(
-    name: string,
-  ): Counter<string> | Histogram<string> | Gauge<string> | undefined {
-    const metric = this.registry.getSingleMetric(name);
-    return metric as
-      | Counter<string>
-      | Histogram<string>
-      | Gauge<string>
-      | undefined;
-  }
-
-  // ── Cache-specific Metrics ─────────────────────────────────────────────────────
-
-  /**
-   * Record a cache hit.
-   *
-   * @param keyType  Type of cache key (e.g., 'account_balance', 'contract_read')
-   */
-  recordCacheHit(keyType: string): void {
-    this.cacheHitsCounter.inc({ key_type: keyType });
-  }
-
-  /**
-   * Record a cache miss.
-   *
-   * @param keyType  Type of cache key (e.g., 'account_balance', 'contract_read')
-   */
-  recordCacheMiss(keyType: string): void {
-    this.cacheMissesCounter.inc({ key_type: keyType });
-  }
-
-  /**
-   * Record cache fetch duration.
-   *
-   * @param durationMs  Fetch duration in milliseconds
-   * @param keyType     Type of cache key
-   */
-  recordCacheFetchDuration(durationMs: number, keyType: string): void {
-    this.cacheFetchDuration.observe({ key_type: keyType }, durationMs);
-  }
-
-  /**
-   * Get cache hit rate.
-   *
-   * @returns Hit rate between 0 and 1
-   */
-  getCacheHitRate(): number {
-    const hits = this.getFirstMetricValue('cache_hits_total');
-    const misses = this.getFirstMetricValue('cache_misses_total');
-    const total = hits + misses;
-
-    return total > 0 ? hits / total : 0;
-  }
-
-  private getFirstMetricValue(name: string): number {
-    const metric = this.getMetricsAsJson()[name];
-    if (!this.hasMetricValues(metric)) {
-      return 0;
-    }
-
-    return metric.values[0]?.value ?? 0;
-  }
-
-  private hasMetricValues(
-    metric: unknown,
-  ): metric is { values: Array<{ value: number }> } {
-    if (typeof metric !== 'object' || metric === null) {
-      return false;
-    }
-
-    const candidate = metric as { values?: unknown };
-    if (!Array.isArray(candidate.values)) {
-      return false;
-    }
-
-    return candidate.values.every(
-      (value) =>
-        typeof value === 'object' &&
-        value !== null &&
-        'value' in value &&
-        typeof (value as { value: unknown }).value === 'number',
-    );
+  recordHorizonError(method: string, statusCode: string): void {
+    this.horizonErrors.inc({ method, status_code: statusCode });
   }
 
   //Dynamic metric helpers (legacy API)

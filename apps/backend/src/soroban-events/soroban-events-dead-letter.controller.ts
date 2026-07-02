@@ -209,7 +209,7 @@ export class SorobanEventsDeadLetterController {
     );
 
     const result = await this.dlqService.replayEvent(dlqId, dto.reason);
-    return result as ReplayDeadLetterResponseDto;
+    return result;
   }
 
   /**
@@ -270,6 +270,6 @@ export class SorobanEventsDeadLetterController {
       eventId: result.eventId,
       status: result.status,
       resolvedAt: result.resolvedAt,
-    } as ResolveDeadLetterResponseDto;
+    };
   }
 }
