@@ -61,12 +61,16 @@ describe('ContractsController', () => {
         lastValidatedAt: '2026-06-28T10:00:00Z',
       };
 
-      jest.spyOn(service, 'getContractCapabilities').mockReturnValue(mockCapabilities);
+      jest
+        .spyOn(service, 'getContractCapabilities')
+        .mockReturnValue(mockCapabilities);
 
       const result = controller.getContractCapabilities('lumen-token');
 
       expect(result).toEqual(mockCapabilities);
-      expect(service.getContractCapabilities).toHaveBeenCalledWith('lumen-token');
+      expect(service.getContractCapabilities).toHaveBeenCalledWith(
+        'lumen-token',
+      );
     });
 
     it('should return not found message for invalid contract', () => {
@@ -74,8 +78,12 @@ describe('ContractsController', () => {
 
       const result = controller.getContractCapabilities('invalid-contract');
 
-      expect(result).toEqual({ message: "Contract 'invalid-contract' not found in the catalog" });
-      expect(service.getContractCapabilities).toHaveBeenCalledWith('invalid-contract');
+      expect(result).toEqual({
+        message: "Contract 'invalid-contract' not found in the catalog",
+      });
+      expect(service.getContractCapabilities).toHaveBeenCalledWith(
+        'invalid-contract',
+      );
     });
   });
 });

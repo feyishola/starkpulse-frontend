@@ -32,17 +32,26 @@ describe('ContractCapabilityService', () => {
       const mockStellarConfig = {
         network: 'testnet',
         contracts: {
-          lumenToken: 'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
-          crowdfundVault: 'CBBQW7T65XBDPIPXEIIPJVJEEIBSPC566HMEU2LTBAULLKCNUFRFBKRO',
-          projectRegistry: 'CBYFZU7C5TV2J56PEOXI5Q53HNFYFOW4USEBG4M6BCV7RUIMJI7JISLC',
-          contributorRegistry: 'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
-          matchingPool: 'CBQJ2E2MPYRCQDHZZYJXHRKUTCTIJFO55AVGHB2WDZSLS2OOENUDC6HH',
+          lumenToken:
+            'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
+          crowdfundVault:
+            'CBBQW7T65XBDPIPXEIIPJVJEEIBSPC566HMEU2LTBAULLKCNUFRFBKRO',
+          projectRegistry:
+            'CBYFZU7C5TV2J56PEOXI5Q53HNFYFOW4USEBG4M6BCV7RUIMJI7JISLC',
+          contributorRegistry:
+            'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
+          matchingPool:
+            'CBQJ2E2MPYRCQDHZZYJXHRKUTCTIJFO55AVGHB2WDZSLS2OOENUDC6HH',
           treasury: 'CD56RQ3JBYKZIDB7TINYRWFLPAUVGVGQPCOYE2VYZYXP2TSEA5E52IQ5',
         },
       };
 
-      jest.spyOn(configService, 'getStellarConfig').mockReturnValue(mockStellarConfig as any);
-      jest.spyOn(process, 'env', 'get').mockReturnValue({ NODE_ENV: 'development' });
+      jest
+        .spyOn(configService, 'getStellarConfig')
+        .mockReturnValue(mockStellarConfig as any);
+      jest
+        .spyOn(process, 'env', 'get')
+        .mockReturnValue({ NODE_ENV: 'development' });
 
       const result = service.getCapabilityCatalog();
 
@@ -59,21 +68,28 @@ describe('ContractCapabilityService', () => {
       const mockStellarConfig = {
         network: 'testnet',
         contracts: {
-          lumenToken: 'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
-          crowdfundVault: 'CBBQW7T65XBDPIPXEIIPJVJEEIBSPC566HMEU2LTBAULLKCNUFRFBKRO',
-          projectRegistry: 'CBYFZU7C5TV2J56PEOXI5Q53HNFYFOW4USEBG4M6BCV7RUIMJI7JISLC',
-          contributorRegistry: 'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
-          matchingPool: 'CBQJ2E2MPYRCQDHZZYJXHRKUTCTIJFO55AVGHB2WDZSLS2OOENUDC6HH',
+          lumenToken:
+            'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
+          crowdfundVault:
+            'CBBQW7T65XBDPIPXEIIPJVJEEIBSPC566HMEU2LTBAULLKCNUFRFBKRO',
+          projectRegistry:
+            'CBYFZU7C5TV2J56PEOXI5Q53HNFYFOW4USEBG4M6BCV7RUIMJI7JISLC',
+          contributorRegistry:
+            'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
+          matchingPool:
+            'CBQJ2E2MPYRCQDHZZYJXHRKUTCTIJFO55AVGHB2WDZSLS2OOENUDC6HH',
           treasury: 'CD56RQ3JBYKZIDB7TINYRWFLPAUVGVGQPCOYE2VYZYXP2TSEA5E52IQ5',
         },
       };
 
-      jest.spyOn(configService, 'getStellarConfig').mockReturnValue(mockStellarConfig as any);
+      jest
+        .spyOn(configService, 'getStellarConfig')
+        .mockReturnValue(mockStellarConfig as any);
 
       const result = service.getCapabilityCatalog();
-      
+
       // Check that we have at least the expected contracts
-      const contractIds = result.contracts.map(c => c.contractId);
+      const contractIds = result.contracts.map((c) => c.contractId);
       expect(contractIds).toContain('lumen-token');
       expect(contractIds).toContain('crowdfund-vault');
       expect(contractIds).toContain('project-registry');
@@ -87,17 +103,24 @@ describe('ContractCapabilityService', () => {
       const mockStellarConfig = {
         network: 'testnet',
         contracts: {
-          lumenToken: 'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
+          lumenToken:
+            'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
           crowdfundVault: null, // Not deployed
         },
       };
 
-      jest.spyOn(configService, 'getStellarConfig').mockReturnValue(mockStellarConfig as any);
+      jest
+        .spyOn(configService, 'getStellarConfig')
+        .mockReturnValue(mockStellarConfig as any);
 
       const result = service.getCapabilityCatalog();
-      
-      const lumenToken = result.contracts.find(c => c.contractId === 'lumen-token');
-      const crowdfundVault = result.contracts.find(c => c.contractId === 'crowdfund-vault');
+
+      const lumenToken = result.contracts.find(
+        (c) => c.contractId === 'lumen-token',
+      );
+      const crowdfundVault = result.contracts.find(
+        (c) => c.contractId === 'crowdfund-vault',
+      );
 
       expect(lumenToken?.status).toBe('active');
       expect(crowdfundVault?.status).toBe('upcoming');
@@ -109,11 +132,14 @@ describe('ContractCapabilityService', () => {
       const mockStellarConfig = {
         network: 'testnet',
         contracts: {
-          lumenToken: 'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
+          lumenToken:
+            'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
         },
       };
 
-      jest.spyOn(configService, 'getStellarConfig').mockReturnValue(mockStellarConfig as any);
+      jest
+        .spyOn(configService, 'getStellarConfig')
+        .mockReturnValue(mockStellarConfig as any);
 
       const result = service.getContractCapabilities('lumen-token');
 

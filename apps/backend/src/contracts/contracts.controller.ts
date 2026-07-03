@@ -7,19 +7,19 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { ContractCapabilityService } from './contract-capability.service';
-import { ContractCapabilityCatalogResponseDto, ContractCapabilityDto } from './dto/contract-capability.dto';
+import {
+  ContractCapabilityCatalogResponseDto,
+  ContractCapabilityDto,
+} from './dto/contract-capability.dto';
 
 @ApiTags('contracts')
 @Controller({ path: 'contracts', version: '1' })
 export class ContractsController {
-  constructor(private readonly contractCapabilityService: ContractCapabilityService) {}
+  constructor(
+    private readonly contractCapabilityService: ContractCapabilityService,
+  ) {}
 
   /**
    * Returns a machine-readable catalog of blockchain contract capabilities
@@ -87,20 +87,27 @@ export class ContractsController {
   })
   @ApiResponse({
     status: 500,
-    description: 'Internal server error - Failed to retrieve contract capabilities',
+    description:
+      'Internal server error - Failed to retrieve contract capabilities',
   })
-  getContractCapabilities(@Param('contractId') contractId: string): ContractCapabilityDto | { message: string } {
+  getContractCapabilities(
+    @Param('contractId') contractId: string,
+  ): ContractCapabilityDto | { message: string } {
     try {
-      const capabilities = this.contractCapabilityService.getContractCapabilities(contractId);
-      
+      const capabilities =
+        this.contractCapabilityService.getContractCapabilities(contractId);
+
       if (!capabilities) {
         return { message: `Contract '${contractId}' not found in the catalog` };
       }
 
       return capabilities;
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      throw new Error(`Failed to retrieve contract capabilities: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new Error(
+        `Failed to retrieve contract capabilities: ${errorMessage}`,
+      );
     }
   }
 }

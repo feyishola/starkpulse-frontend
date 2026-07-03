@@ -55,7 +55,15 @@ export class ContractCapabilityDto {
 
   @ApiProperty({
     description: 'Contract category',
-    enum: ['token', 'registry', 'vault', 'pool', 'treasury', 'vesting', 'adapter'],
+    enum: [
+      'token',
+      'registry',
+      'vault',
+      'pool',
+      'treasury',
+      'vesting',
+      'adapter',
+    ],
     example: 'registry',
   })
   category: string;

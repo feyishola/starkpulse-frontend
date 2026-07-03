@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '../config/config.service';
-import { ContractCapabilityCatalogResponseDto, ContractCapabilityDto, ContractMethodDto } from './dto/contract-capability.dto';
-import { StellarConfigResponseDto, StellarContractsDto } from '../config/dto/stellar-config.dto';
+import {
+  ContractCapabilityCatalogResponseDto,
+  ContractCapabilityDto,
+  ContractMethodDto,
+} from './dto/contract-capability.dto';
+import { StellarContractsDto } from '../config/dto/stellar-config.dto';
 
 interface ContractDefinition {
   contractId: string;
@@ -16,15 +20,10 @@ interface ContractDefinition {
   }>;
 }
 
-// Type for contract addresses that includes all our contracts
-interface ContractAddresses extends StellarContractsDto {
-  pricingAdapter?: string | null;
-}
-
 @Injectable()
 export class ContractCapabilityService {
   private readonly logger = new Logger(ContractCapabilityService.name);
-  
+
   private readonly contractDefinitions: Record<string, ContractDefinition> = {
     lumenToken: {
       contractId: 'lumen-token',
@@ -264,35 +263,6 @@ export class ContractCapabilityService {
         },
       ],
     },
-    pricingAdapter: {
-      contractId: 'pricing-adapter',
-      displayName: 'Pricing Adapter',
-      version: '1.0.0',
-      category: 'adapter',
-      description: 'Converts between different pricing mechanisms and tokens',
-      publicMethods: [
-        {
-          name: 'get_config',
-          category: 'read-only',
-          description: 'Returns pricing adapter configuration',
-        },
-        {
-          name: 'convert',
-          category: 'read-only',
-          description: 'Converts between token amounts using current rates',
-        },
-        {
-          name: 'update_rate',
-          category: 'write',
-          description: 'Updates conversion rates (admin only)',
-        },
-        {
-          name: 'get_rate',
-          category: 'read-only',
-          description: 'Returns current conversion rate between tokens',
-        },
-      ],
-    },
   };
 
   constructor(private readonly configService: ConfigService) {}
@@ -310,15 +280,17 @@ export class ContractCapabilityService {
 
       // Get current contract addresses from config
       const stellarConfig = this.configService.getStellarConfig();
-      // Type assertion to ContractAddresses since pricingAdapter might not be in the type
-      const contractAddresses = stellarConfig.contracts as ContractAddresses;
+
+      // Use the contracts from config directly
+      // We'll handle pricingAdapter separately since it's not in the StellarContractsDto type
+      const contractAddresses = stellarConfig.contracts;
       const network = stellarConfig.network;
 
       // Build contract capabilities
       const contracts = this.buildContractCapabilities(
         contractAddresses,
         network,
-        generatedAt
+        generatedAt,
       );
 
       return {
@@ -329,11 +301,17 @@ export class ContractCapabilityService {
         contracts,
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
       const errorStack = error instanceof Error ? error.stack : undefined;
-      
-      this.logger.error(`Failed to load contract capability catalog: ${errorMessage}`, errorStack);
-      throw new Error(`Unable to load contract capability catalog: ${errorMessage}`);
+
+      this.logger.error(
+        `Failed to load contract capability catalog: ${errorMessage}`,
+        errorStack,
+      );
+      throw new Error(
+        `Unable to load contract capability catalog: ${errorMessage}`,
+      );
     }
   }
 
@@ -349,9 +327,9 @@ export class ContractCapabilityService {
    * Build contract capabilities from definitions and current addresses
    */
   private buildContractCapabilities(
-    contractAddresses: ContractAddresses,
+    contractAddresses: StellarContractsDto,
     network: string,
-    generatedAt: string
+    generatedAt: string,
   ): ContractCapabilityDto[] {
     const contracts: ContractCapabilityDto[] = [];
 
@@ -361,21 +339,23 @@ export class ContractCapabilityService {
       const address = this.getContractAddress(key, contractAddresses);
 
       // Build supported methods DTOs
-      const supportedMethods: ContractMethodDto[] = definition.publicMethods.map(method => ({
-        name: method.name,
-        category: method.category,
-        description: method.description,
-        public: true,
-      }));
+      const supportedMethods: ContractMethodDto[] =
+        definition.publicMethods.map((method) => ({
+          name: method.name,
+          category: method.category,
+          description: method.description,
+          public: true,
+        }));
 
       // Get the contract address (vestingWallet uses contributorRegistry)
-      const contractAddress = key === 'vestingWallet' 
-        ? contractAddresses.contributorRegistry 
-        : address;
+      const contractAddress =
+        key === 'vestingWallet'
+          ? contractAddresses.contributorRegistry
+          : address;
 
       // Always include contract in catalog, mark as 'upcoming' if no address
       const status = contractAddress ? 'active' : 'upcoming';
-      
+
       // Include all contracts in catalog for discovery
       // Frontend can check status to know if contract is deployed
       contracts.push({
@@ -397,7 +377,10 @@ export class ContractCapabilityService {
   /**
    * Get contract address from config based on key
    */
-  private getContractAddress(key: string, contractAddresses: ContractAddresses): string | null {
+  private getContractAddress(
+    key: string,
+    contractAddresses: StellarContractsDto,
+  ): string | null {
     // Use type-safe property access
     switch (key) {
       case 'lumenToken':
@@ -412,8 +395,6 @@ export class ContractCapabilityService {
         return contractAddresses.matchingPool ?? null;
       case 'treasury':
         return contractAddresses.treasury ?? null;
-      case 'pricingAdapter':
-        return contractAddresses.pricingAdapter ?? null;
       default:
         return null;
     }
@@ -424,29 +405,32 @@ export class ContractCapabilityService {
    */
   getContractCapabilities(contractId: string): ContractCapabilityDto | null {
     const catalog = this.getCapabilityCatalog();
-    return catalog.contracts.find(contract => contract.contractId === contractId) || null;
+    return (
+      catalog.contracts.find(
+        (contract) => contract.contractId === contractId,
+      ) || null
+    );
   }
 }
-
 
 /**
  * Contract capability service that manages a centralized catalog of
  * blockchain contract capabilities available in the current environment.
- * 
+ *
  * The service provides:
  * 1. Machine-readable contract metadata
  * 2. Public method definitions for client discovery
  * 3. Integration with current contract configuration
  * 4. Environment-aware catalog generation
- * 
+ *
  * @example
  * ```typescript
  * // Get full capability catalog
  * const catalog = service.getCapabilityCatalog();
- * 
+ *
  * // Get specific contract capabilities
  * const lumenToken = service.getContractCapabilities('lumen-token');
  * ```
- * 
+ *
  * @public
  */
