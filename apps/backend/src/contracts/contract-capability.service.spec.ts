@@ -29,8 +29,11 @@ describe('ContractCapabilityService', () => {
 
   describe('getCapabilityCatalog', () => {
     it('should return catalog with environment metadata', () => {
-      const mockStellarConfig = {
-        network: 'testnet',
+      const mockStellarConfig: any = {
+        network: 'testnet' as const,
+        horizonUrl: 'https://horizon-testnet.stellar.org',
+        sorobanRpcUrl: 'https://soroban-testnet.stellar.org',
+        networkPassphrase: 'Test SDF Network ; September 2015',
         contracts: {
           lumenToken:
             'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
@@ -48,10 +51,10 @@ describe('ContractCapabilityService', () => {
 
       jest
         .spyOn(configService, 'getStellarConfig')
-        .mockReturnValue(mockStellarConfig as any);
-      jest
-        .spyOn(process, 'env', 'get')
-        .mockReturnValue({ NODE_ENV: 'development' });
+        .mockReturnValue(mockStellarConfig);
+      // Mock process.env directly instead of using 'get' accessor
+      const originalEnv = process.env;
+      process.env = { ...originalEnv, NODE_ENV: 'development' };
 
       const result = service.getCapabilityCatalog();
 
@@ -62,11 +65,17 @@ describe('ContractCapabilityService', () => {
       expect(result.generatedAt).toBeDefined();
       expect(result.contracts).toBeInstanceOf(Array);
       expect(result.contracts.length).toBeGreaterThan(0);
+
+      // Restore original process.env
+      process.env = originalEnv;
     });
 
     it('should include all defined contracts', () => {
-      const mockStellarConfig = {
-        network: 'testnet',
+      const mockStellarConfig: any = {
+        network: 'testnet' as const,
+        horizonUrl: 'https://horizon-testnet.stellar.org',
+        sorobanRpcUrl: 'https://soroban-testnet.stellar.org',
+        networkPassphrase: 'Test SDF Network ; September 2015',
         contracts: {
           lumenToken:
             'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
@@ -84,7 +93,7 @@ describe('ContractCapabilityService', () => {
 
       jest
         .spyOn(configService, 'getStellarConfig')
-        .mockReturnValue(mockStellarConfig as any);
+        .mockReturnValue(mockStellarConfig);
 
       const result = service.getCapabilityCatalog();
 
@@ -100,18 +109,25 @@ describe('ContractCapabilityService', () => {
     });
 
     it('should mark contracts with addresses as active', () => {
-      const mockStellarConfig = {
-        network: 'testnet',
+      const mockStellarConfig: any = {
+        network: 'testnet' as const,
+        horizonUrl: 'https://horizon-testnet.stellar.org',
+        sorobanRpcUrl: 'https://soroban-testnet.stellar.org',
+        networkPassphrase: 'Test SDF Network ; September 2015',
         contracts: {
           lumenToken:
             'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
           crowdfundVault: null, // Not deployed
+          projectRegistry: null,
+          contributorRegistry: null,
+          matchingPool: null,
+          treasury: null,
         },
       };
 
       jest
         .spyOn(configService, 'getStellarConfig')
-        .mockReturnValue(mockStellarConfig as any);
+        .mockReturnValue(mockStellarConfig);
 
       const result = service.getCapabilityCatalog();
 
@@ -129,17 +145,25 @@ describe('ContractCapabilityService', () => {
 
   describe('getContractCapabilities', () => {
     it('should return specific contract capabilities', () => {
-      const mockStellarConfig = {
-        network: 'testnet',
+      const mockStellarConfig: any = {
+        network: 'testnet' as const,
+        horizonUrl: 'https://horizon-testnet.stellar.org',
+        sorobanRpcUrl: 'https://soroban-testnet.stellar.org',
+        networkPassphrase: 'Test SDF Network ; September 2015',
         contracts: {
           lumenToken:
             'CCOVDGHF3XQ5RAFY6DJ36G6CHQJF54QCOBZXCC3LBMKNEWQJLDGXQJSB',
+          crowdfundVault: null,
+          projectRegistry: null,
+          contributorRegistry: null,
+          matchingPool: null,
+          treasury: null,
         },
       };
 
       jest
         .spyOn(configService, 'getStellarConfig')
-        .mockReturnValue(mockStellarConfig as any);
+        .mockReturnValue(mockStellarConfig);
 
       const result = service.getContractCapabilities('lumen-token');
 
@@ -151,6 +175,25 @@ describe('ContractCapabilityService', () => {
     });
 
     it('should return null for unknown contract', () => {
+      const mockStellarConfig: any = {
+        network: 'testnet' as const,
+        horizonUrl: 'https://horizon-testnet.stellar.org',
+        sorobanRpcUrl: 'https://soroban-testnet.stellar.org',
+        networkPassphrase: 'Test SDF Network ; September 2015',
+        contracts: {
+          lumenToken: null,
+          crowdfundVault: null,
+          projectRegistry: null,
+          contributorRegistry: null,
+          matchingPool: null,
+          treasury: null,
+        },
+      };
+
+      jest
+        .spyOn(configService, 'getStellarConfig')
+        .mockReturnValue(mockStellarConfig);
+
       const result = service.getContractCapabilities('unknown-contract');
       expect(result).toBeNull();
     });

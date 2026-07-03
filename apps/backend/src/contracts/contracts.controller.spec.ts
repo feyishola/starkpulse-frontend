@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ContractsController } from './contracts.controller';
 import { ContractCapabilityService } from './contract-capability.service';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Reflector } from '@nestjs/core';
 
 describe('ContractsController', () => {
   let controller: ContractsController;
@@ -15,6 +17,23 @@ describe('ContractsController', () => {
           useValue: {
             getCapabilityCatalog: jest.fn(),
             getContractCapabilities: jest.fn(),
+          },
+        },
+        {
+          provide: CACHE_MANAGER,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            del: jest.fn(),
+          },
+        },
+        {
+          provide: Reflector,
+          useValue: {
+            get: jest.fn(),
+            getAll: jest.fn(),
+            getAllAndOverride: jest.fn(),
+            getAllAndMerge: jest.fn(),
           },
         },
       ],
