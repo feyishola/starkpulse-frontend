@@ -98,8 +98,9 @@ export class ContractsController {
       }
 
       return capabilities;
-    } catch (error) {
-      throw new Error(`Failed to retrieve contract capabilities: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new Error(`Failed to retrieve contract capabilities: ${errorMessage}`);
     }
   }
 }

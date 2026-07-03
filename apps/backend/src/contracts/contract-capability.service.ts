@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '../config/config.service';
-import { config } from '../lib/config';
 import { ContractCapabilityCatalogResponseDto, ContractCapabilityDto, ContractMethodDto } from './dto/contract-capability.dto';
+import { StellarConfigResponseDto, StellarContractsDto } from '../config/dto/stellar-config.dto';
 
 interface ContractDefinition {
   contractId: string;
@@ -14,6 +14,11 @@ interface ContractDefinition {
     category: 'read-only' | 'write' | 'admin-only';
     description: string;
   }>;
+}
+
+// Type for contract addresses that includes all our contracts
+interface ContractAddresses extends StellarContractsDto {
+  pricingAdapter?: string | null;
 }
 
 @Injectable()
@@ -305,7 +310,8 @@ export class ContractCapabilityService {
 
       // Get current contract addresses from config
       const stellarConfig = this.configService.getStellarConfig();
-      const contractAddresses = stellarConfig.contracts;
+      // Type assertion to ContractAddresses since pricingAdapter might not be in the type
+      const contractAddresses = stellarConfig.contracts as ContractAddresses;
       const network = stellarConfig.network;
 
       // Build contract capabilities
@@ -322,9 +328,12 @@ export class ContractCapabilityService {
         generatedAt,
         contracts,
       };
-    } catch (error) {
-      this.logger.error(`Failed to load contract capability catalog: ${error.message}`, error.stack);
-      throw new Error(`Unable to load contract capability catalog: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      
+      this.logger.error(`Failed to load contract capability catalog: ${errorMessage}`, errorStack);
+      throw new Error(`Unable to load contract capability catalog: ${errorMessage}`);
     }
   }
 
@@ -340,7 +349,7 @@ export class ContractCapabilityService {
    * Build contract capabilities from definitions and current addresses
    */
   private buildContractCapabilities(
-    contractAddresses: any,
+    contractAddresses: ContractAddresses,
     network: string,
     generatedAt: string
   ): ContractCapabilityDto[] {
@@ -359,26 +368,27 @@ export class ContractCapabilityService {
         public: true,
       }));
 
-      // Only include contracts that have addresses (are deployed)
-      // Note: vestingWallet uses contributorRegistry contract ID
+      // Get the contract address (vestingWallet uses contributorRegistry)
       const contractAddress = key === 'vestingWallet' 
         ? contractAddresses.contributorRegistry 
         : address;
 
-      // Include contract if it has an address OR it's vestingWallet (which uses contributorRegistry)
-      if (contractAddress || key === 'vestingWallet' || key === 'pricingAdapter') {
-        contracts.push({
-          contractId: definition.contractId,
-          displayName: definition.displayName,
-          version: definition.version,
-          status: contractAddress ? 'active' : 'upcoming',
-          category: definition.category,
-          address: contractAddress,
-          supportedMethods,
-          network,
-          lastValidatedAt: generatedAt,
-        });
-      }
+      // Always include contract in catalog, mark as 'upcoming' if no address
+      const status = contractAddress ? 'active' : 'upcoming';
+      
+      // Include all contracts in catalog for discovery
+      // Frontend can check status to know if contract is deployed
+      contracts.push({
+        contractId: definition.contractId,
+        displayName: definition.displayName,
+        version: definition.version,
+        status: status,
+        category: definition.category,
+        address: contractAddress,
+        supportedMethods,
+        network,
+        lastValidatedAt: generatedAt,
+      });
     }
 
     return contracts;
@@ -387,19 +397,26 @@ export class ContractCapabilityService {
   /**
    * Get contract address from config based on key
    */
-  private getContractAddress(key: string, contractAddresses: any): string | null {
-    const addressMap: Record<string, string | null> = {
-      lumenToken: contractAddresses.lumenToken,
-      crowdfundVault: contractAddresses.crowdfundVault,
-      projectRegistry: contractAddresses.projectRegistry,
-      contributorRegistry: contractAddresses.contributorRegistry,
-      matchingPool: contractAddresses.matchingPool,
-      treasury: contractAddresses.treasury,
-      pricingAdapter: contractAddresses.pricingAdapter,
-      // vestingWallet uses contributorRegistry address
-    };
-
-    return addressMap[key] || null;
+  private getContractAddress(key: string, contractAddresses: ContractAddresses): string | null {
+    // Use type-safe property access
+    switch (key) {
+      case 'lumenToken':
+        return contractAddresses.lumenToken ?? null;
+      case 'crowdfundVault':
+        return contractAddresses.crowdfundVault ?? null;
+      case 'projectRegistry':
+        return contractAddresses.projectRegistry ?? null;
+      case 'contributorRegistry':
+        return contractAddresses.contributorRegistry ?? null;
+      case 'matchingPool':
+        return contractAddresses.matchingPool ?? null;
+      case 'treasury':
+        return contractAddresses.treasury ?? null;
+      case 'pricingAdapter':
+        return contractAddresses.pricingAdapter ?? null;
+      default:
+        return null;
+    }
   }
 
   /**
